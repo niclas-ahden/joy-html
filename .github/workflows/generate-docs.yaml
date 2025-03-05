@@ -5,6 +5,8 @@ on:
   release:
     types:
       - published
+  # Allow manually triggering the workflow
+  workflow_dispatch:
 
 jobs:
   generate-docs:

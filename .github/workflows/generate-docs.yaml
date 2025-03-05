@@ -7,7 +7,6 @@ on:
       - published
   # Allow manually triggering the workflow
   workflow_dispatch:
-  push:
 
 jobs:
   generate-docs:

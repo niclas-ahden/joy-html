@@ -1,7 +1,6 @@
 module [
     Html,
     ssr_document,
-
     a,
     abbr,
     address,
@@ -173,10 +172,10 @@ element_with_events = |tag|
     |attrs, events, children| Element({ tag, attrs, events }, children)
 
 void_element = |tag|
-  |attrs| Element({ tag, attrs, events: [] }, [])
+    |attrs| Element({ tag, attrs, events: [] }, [])
 
 void_element_with_events = |tag|
-  |attrs, events| Element({tag, attrs, events}, [])
+    |attrs, events| Element({ tag, attrs, events }, [])
 
 # Elements
 
@@ -299,3 +298,15 @@ ul = element("ul")
 use = element("use")
 var = element("var")
 video = element("video")
+
+# Minimal test to ensure CI works. Please, future me, add proper coverage.
+expect
+    ssr_element(
+        a(
+            [],
+            [
+                span([], [text("foo")]),
+            ],
+        ),
+    )
+    == "<a><span>foo</span></a>"

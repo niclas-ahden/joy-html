@@ -96,6 +96,7 @@ module [
     pattern,
     ping,
     placeholder,
+    playsinline,
     poster,
     preload,
     radiogroup,
@@ -290,6 +291,7 @@ optimum = attribute("optimum")
 pattern = attribute("pattern")
 ping = attribute("ping")
 placeholder = attribute("placeholder")
+playsinline = attribute("playsinline")
 poster = attribute("poster")
 preload = attribute("preload")
 radiogroup = attribute("radiogroup")

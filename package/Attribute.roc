@@ -7,6 +7,7 @@ module [
     allow,
     alt,
     async,
+    attribute,
     autocapitalize,
     autocomplete,
     autofocus,
@@ -89,6 +90,7 @@ module [
     muted,
     name,
     novalidate,
+    oncontextmenu,
     open,
     optimum,
     pattern,
@@ -191,7 +193,6 @@ disabled = |bool| boolean_attribute("disabled", bool)
 # Special attributes: https://chinedufn.github.io/percy/html-macro/special-attributes/index.html
 # TODO: Do we need special treatment of `value`?
 
-
 # Attributes
 
 attribute : Str -> (Str -> { key : Str, value : Str })
@@ -283,6 +284,7 @@ multiple = attribute("multiple")
 muted = attribute("muted")
 name = attribute("name")
 novalidate = attribute("novalidate")
+oncontextmenu = attribute("oncontextmenu")
 open = attribute("open")
 optimum = attribute("optimum")
 pattern = attribute("pattern")

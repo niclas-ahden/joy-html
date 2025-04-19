@@ -158,6 +158,10 @@ style = |styles|
 
     { key: "style", value: val }
 
+data : Str, Str -> { key : Str, value : Str }
+data = |data_name, data_value|
+    { key: "data-${data_name}", value: data_value }
+
 # Boolean attributes: https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 
 boolean_attribute : Str, Bool -> { key : Str, value : Str }
@@ -232,7 +236,6 @@ controls = attribute("controls")
 coords = attribute("coords")
 crossorigin = attribute("crossorigin")
 csp = attribute("csp")
-data = attribute("data")
 datetime = attribute("datetime")
 decoding = attribute("decoding")
 default = attribute("default")

@@ -5,6 +5,8 @@ module [
     action,
     align,
     allow,
+    allowfullscreen,
+    alpha,
     alt,
     async,
     attribute,
@@ -65,11 +67,14 @@ module [
     icon,
     id,
     importance,
+    inert,
     inputmode,
     integrity,
     intrinsicsize,
     ismap,
     itemprop,
+    itemscope,
+    itemtype,
     keytype,
     kind,
     label,
@@ -89,6 +94,7 @@ module [
     multiple,
     muted,
     name,
+    nomodule,
     novalidate,
     oncontextmenu,
     open,
@@ -112,6 +118,9 @@ module [
     scope,
     scoped,
     selected,
+    shadowrootclonable,
+    shadowrootdelegatesfocus,
+    shadowrootserializable,
     shape,
     size,
     sizes,
@@ -164,8 +173,37 @@ data = |data_name, data_value|
 
 # Boolean attributes: https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 
-boolean_attribute : Str, Bool -> { key : Str, value : Str }
-boolean_attribute = |key, val| { key, value: if val then "true" else "false" }
+boolean_attribute : Str -> (Bool -> { key : Str, value : Str })
+boolean_attribute = |key| |val| { key, value: if val then "true" else "false" }
+
+# NOTE: The list of boolean attributes must be kept in sync with Joy's list
+# in `roc_to_percy_attrs` in the file `crates/web/src/lib.rs`.
+allowfullscreen = boolean_attribute("allowfullscreen")
+alpha = boolean_attribute("alpha")
+async = boolean_attribute("async")
+autofocus = boolean_attribute("autofocus")
+autoplay = boolean_attribute("autoplay")
+controls = boolean_attribute("controls")
+default = boolean_attribute("default")
+defer = boolean_attribute("defer")
+formnovalidate = boolean_attribute("formnovalidate")
+inert = boolean_attribute("inert")
+ismap = boolean_attribute("ismap")
+itemscope = boolean_attribute("itemscope")
+loop = boolean_attribute("loop")
+multiple = boolean_attribute("multiple")
+muted = boolean_attribute("muted")
+nomodule = boolean_attribute("nomodule")
+novalidate = boolean_attribute("novalidate")
+open = boolean_attribute("open")
+playsinline = boolean_attribute("playsinline")
+readonly = boolean_attribute("readonly")
+required = boolean_attribute("required")
+reversed = boolean_attribute("reversed")
+selected = boolean_attribute("selected")
+shadowrootclonable = boolean_attribute("shadowrootclonable")
+shadowrootdelegatesfocus = boolean_attribute("shadowrootdelegatesfocus")
+shadowrootserializable = boolean_attribute("shadowrootserializable")
 
 ## `checked` is a boolean/binary attribute. Given `Bool.true` it'll be present on the element,
 ## otherwise it'll be absent. It's impossible to set it to a certain value like other attributes
@@ -178,7 +216,7 @@ boolean_attribute = |key, val| { key, value: if val then "true" else "false" }
 ## `percy-dom` goes against the grain and _does_ use this attribute to set the current state of the
 ## element. This makes for an ergonomic API:
 ##
-##     input [ type "checkbox", checked isChecked ] [ { name: "onclick", handler: ...
+##     input([ type("checkbox"), checked(isChecked) ] [ { name: "onclick", handler: ...
 ##
 ## If the `onclick` event toggles the value of `isChecked`, the element will be re-rendered and its
 ## state will change to reflect its current "checkedness".
@@ -187,13 +225,13 @@ boolean_attribute = |key, val| { key, value: if val then "true" else "false" }
 ## https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 ## https://chinedufn.github.io/percy/html-macro/special-attributes/index.html
 checked : Bool -> { key : Str, value : Str }
-checked = |bool| boolean_attribute("checked", bool)
+checked = boolean_attribute("checked")
 
 ## `disabled` is a boolean/binary attribute. Given `Bool.true` it'll be present on the element,
 ## otherwise it'll be absent. It's impossible to set it to a certain value like other attributes
 ## (e.g. `disabled="true"` or `disabled="1"`).
 disabled : Bool -> { key : Str, value : Str }
-disabled = |bool| boolean_attribute("disabled", bool)
+disabled = boolean_attribute("disabled")
 
 # Special attributes: https://chinedufn.github.io/percy/html-macro/special-attributes/index.html
 # TODO: Do we need special treatment of `value`?
@@ -210,11 +248,8 @@ action = attribute("action")
 align = attribute("align")
 allow = attribute("allow")
 alt = attribute("alt")
-async = attribute("async")
 autocapitalize = attribute("autocapitalize")
 autocomplete = attribute("autocomplete")
-autofocus = attribute("autofocus")
-autoplay = attribute("autoplay")
 background = attribute("background")
 bgcolor = attribute("bgcolor")
 border = attribute("border")
@@ -232,14 +267,11 @@ colspan = attribute("colspan")
 content = attribute("content")
 contenteditable = attribute("contenteditable")
 contextmenu = attribute("contextmenu")
-controls = attribute("controls")
 coords = attribute("coords")
 crossorigin = attribute("crossorigin")
 csp = attribute("csp")
 datetime = attribute("datetime")
 decoding = attribute("decoding")
-default = attribute("default")
-defer = attribute("defer")
 dir = attribute("dir")
 dirname = attribute("dirname")
 download = attribute("download")
@@ -251,7 +283,6 @@ form = attribute("form")
 formaction = attribute("formaction")
 formenctype = attribute("formenctype")
 formmethod = attribute("formmethod")
-formnovalidate = attribute("formnovalidate")
 formtarget = attribute("formtarget")
 headers = attribute("headers")
 height = attribute("height")
@@ -266,8 +297,8 @@ importance = attribute("importance")
 inputmode = attribute("inputmode")
 integrity = attribute("integrity")
 intrinsicsize = attribute("intrinsicsize")
-ismap = attribute("ismap")
 itemprop = attribute("itemprop")
+itemtype = attribute("itemtype")
 keytype = attribute("keytype")
 kind = attribute("kind")
 label = attribute("label")
@@ -275,7 +306,6 @@ lang = attribute("lang")
 language = attribute("language")
 list = attribute("list")
 loading = attribute("loading")
-loop = attribute("loop")
 low = attribute("low")
 manifest = attribute("manifest")
 max = attribute("max")
@@ -284,32 +314,23 @@ media = attribute("media")
 method = attribute("method")
 min = attribute("min")
 minlength = attribute("minlength")
-multiple = attribute("multiple")
-muted = attribute("muted")
 name = attribute("name")
-novalidate = attribute("novalidate")
 oncontextmenu = attribute("oncontextmenu")
-open = attribute("open")
 optimum = attribute("optimum")
 pattern = attribute("pattern")
 ping = attribute("ping")
 placeholder = attribute("placeholder")
-playsinline = attribute("playsinline")
 poster = attribute("poster")
 preload = attribute("preload")
 radiogroup = attribute("radiogroup")
-readonly = attribute("readonly")
 referrerpolicy = attribute("referrerpolicy")
 rel = attribute("rel")
-required = attribute("required")
-reversed = attribute("reversed")
 role = attribute("role")
 rows = attribute("rows")
 rowspan = attribute("rowspan")
 sandbox = attribute("sandbox")
 scope = attribute("scope")
 scoped = attribute("scoped")
-selected = attribute("selected")
 shape = attribute("shape")
 size = attribute("size")
 sizes = attribute("sizes")

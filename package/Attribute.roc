@@ -105,6 +105,7 @@ module [
     playsinline,
     poster,
     preload,
+    property,
     radiogroup,
     readonly,
     referrerpolicy,
@@ -322,6 +323,7 @@ ping = attribute("ping")
 placeholder = attribute("placeholder")
 poster = attribute("poster")
 preload = attribute("preload")
+property = attribute("property")
 radiogroup = attribute("radiogroup")
 referrerpolicy = attribute("referrerpolicy")
 rel = attribute("rel")

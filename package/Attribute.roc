@@ -8,6 +8,7 @@ module [
     allowfullscreen,
     alpha,
     alt,
+    aria,
     async,
     attribute,
     autocapitalize,
@@ -171,6 +172,10 @@ style = |styles|
 data : Str, Str -> { key : Str, value : Str }
 data = |data_name, data_value|
     { key: "data-${data_name}", value: data_value }
+
+aria : Str, Str -> { key : Str, value : Str }
+aria = |aria_name, aria_value|
+    { key: "aria-${aria_name}", value: aria_value }
 
 # Boolean attributes: https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 

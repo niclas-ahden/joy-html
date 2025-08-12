@@ -139,6 +139,12 @@ Html state : [
             events : List { name : Str, handler : Str },
         }
         (List (Html state)),
+    VoidElement
+        {
+            tag : Str,
+            attrs : List { key : Str, value : Str },
+            events : List { name : Str, handler : Str },
+        },
 ]
 
 ssr_document : Html state -> Str
@@ -160,6 +166,14 @@ html_to_str_without_events = |h|
                 |> Str.join_with(" ")
             "<${open_tag}>${List.map(children, |c| html_to_str_without_events(c)) |> Str.join_with("")}</${tag}>"
 
+        VoidElement({ tag, attrs }) ->
+            attrs_str = List.map(attrs, |attr| "${attr.key}=\"${attr.value}\"") |> Str.join_with(" ")
+            open_tag =
+                [tag, attrs_str]
+                |> List.keep_if(|ss| Str.is_empty(ss) == Bool.false)
+                |> Str.join_with(" ")
+            "<${open_tag} />"
+
 text : Str -> Html state
 text = |str| Text(str)
 
@@ -172,10 +186,10 @@ element_with_events = |tag|
     |attrs, events, children| Element({ tag, attrs, events }, children)
 
 void_element = |tag|
-    |attrs| Element({ tag, attrs, events: [] }, [])
+    |attrs| VoidElement({ tag, attrs, events: [] })
 
 void_element_with_events = |tag|
-    |attrs, events| Element({ tag, attrs, events }, [])
+    |attrs, events| VoidElement({ tag, attrs, events })
 
 # Elements
 

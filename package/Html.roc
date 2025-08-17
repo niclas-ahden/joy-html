@@ -118,6 +118,8 @@ module [
     wbr,
 ]
 
+import Attribute exposing [Attribute]
+
 # TODO: Move `events` into `attrs` for an API like:
 #
 #     button([], [on_click("foo")])
@@ -135,14 +137,14 @@ Html state : [
     Element
         {
             tag : Str,
-            attrs : List { key : Str, value : Str },
+            attrs : List Attribute,
             events : List { name : Str, handler : Str },
         }
         (List (Html state)),
     VoidElement
         {
             tag : Str,
-            attrs : List { key : Str, value : Str },
+            attrs : List Attribute,
             events : List { name : Str, handler : Str },
         },
 ]
@@ -159,29 +161,38 @@ html_to_str_without_events = |h|
         None -> ""
         Text(t) -> t
         Element({ tag, attrs }, children) ->
-            attrs_str = List.map(attrs, |attr| "${attr.key}=\"${attr.value}\"") |> Str.join_with(" ")
-            open_tag =
-                [tag, attrs_str]
-                |> List.keep_if(|ss| Str.is_empty(ss) == Bool.false)
-                |> Str.join_with(" ")
+            open_tag = Str.join_with([tag, attrs_to_str(attrs)], " ")
             "<${open_tag}>${List.map(children, |c| html_to_str_without_events(c)) |> Str.join_with("")}</${tag}>"
 
         VoidElement({ tag, attrs }) ->
-            attrs_str = List.map(attrs, |attr| "${attr.key}=\"${attr.value}\"") |> Str.join_with(" ")
-            open_tag =
-                [tag, attrs_str]
-                |> List.keep_if(|ss| Str.is_empty(ss) == Bool.false)
-                |> Str.join_with(" ")
+            open_tag = Str.join_with([tag, attrs_to_str(attrs)], " ")
             "<${open_tag} />"
+
+attrs_to_str : List Attribute -> Str
+attrs_to_str = |attrs|
+    attrs
+    |> List.keep_if(
+        |attr|
+            when attr is
+                String(_) -> Bool.true
+                Boolean({ value }) -> value,
+    )
+    |> List.map(
+        |attr|
+            when attr is
+                String({ key, value }) -> "${key}=\"${value}\""
+                Boolean({ key }) -> key,
+    )
+    |> Str.join_with(" ")
 
 text : Str -> Html state
 text = |str| Text(str)
 
-element : Str -> (List { key : Str, value : Str }, List (Html state) -> Html state)
+element : Str -> (List Attribute, List (Html state) -> Html state)
 element = |tag|
     |attrs, children| Element({ tag, attrs, events: [] }, children)
 
-element_with_events : Str -> (List { key : Str, value : Str }, List { name : Str, handler : Str }, List (Html state) -> Html state)
+element_with_events : Str -> (List Attribute, List { name : Str, handler : Str }, List (Html state) -> Html state)
 element_with_events = |tag|
     |attrs, events, children| Element({ tag, attrs, events }, children)
 

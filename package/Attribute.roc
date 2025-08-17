@@ -1,4 +1,5 @@
 module [
+    Attribute,
     accept,
     accept_charset,
     accesskey,
@@ -148,10 +149,18 @@ module [
     wrap,
 ]
 
-# Special cases
-classes = |cs| { key: "class", value: Str.join_with(cs, " ") }
+Attribute : [
+    Boolean { key : Str, value : Bool },
+    String { key : Str, value : Str },
+    # NOTE: Perhaps we want `Enumerated` attributes in the future?
+    # https://developer.mozilla.org/en-US/docs/Glossary/Enumerated
+]
 
-class_list : List (Str, Bool) -> { key : Str, value : Str }
+# Special cases
+classes : List Str -> Attribute
+classes = |cs| String({ key: "class", value: Str.join_with(cs, " ") })
+
+class_list : List (Str, Bool) -> Attribute
 class_list = |cs|
     val =
         cs
@@ -159,31 +168,29 @@ class_list = |cs|
         |> List.map(|(klass, _)| klass)
         |> Str.join_with(" ")
 
-    { key: "class", value: val }
+    String({ key: "class", value: val })
 
-style : List (Str, Str) -> { key : Str, value : Str }
+style : List (Str, Str) -> Attribute
 style = |styles|
     val =
         List.map(styles, |(k, v)| "${k}: ${v}")
         |> Str.join_with(";")
 
-    { key: "style", value: val }
+    String({ key: "style", value: val })
 
-data : Str, Str -> { key : Str, value : Str }
+data : Str, Str -> Attribute
 data = |data_name, data_value|
-    { key: "data-${data_name}", value: data_value }
+    String({ key: "data-${data_name}", value: data_value })
 
-aria : Str, Str -> { key : Str, value : Str }
+aria : Str, Str -> Attribute
 aria = |aria_name, aria_value|
-    { key: "aria-${aria_name}", value: aria_value }
+    String({ key: "aria-${aria_name}", value: aria_value })
 
 # Boolean attributes: https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 
-boolean_attribute : Str -> (Bool -> { key : Str, value : Str })
-boolean_attribute = |key| |val| { key, value: if val then "true" else "false" }
+boolean_attribute : Str -> (Bool -> Attribute)
+boolean_attribute = |key| |val| Boolean({ key, value: val })
 
-# NOTE: The list of boolean attributes must be kept in sync with Joy's list
-# in `roc_to_percy_attrs` in the file `crates/web/src/lib.rs`.
 allowfullscreen = boolean_attribute("allowfullscreen")
 alpha = boolean_attribute("alpha")
 async = boolean_attribute("async")
@@ -222,21 +229,21 @@ shadowrootserializable = boolean_attribute("shadowrootserializable")
 ## `percy-dom` goes against the grain and _does_ use this attribute to set the current state of the
 ## element. This makes for an ergonomic API:
 ##
-##     input([ type("checkbox"), checked(isChecked) ] [ { name: "onclick", handler: ...
+##     input([ type("checkbox"), checked(is_checked) ] [ { name: "onclick", handler: ...
 ##
-## If the `onclick` event toggles the value of `isChecked`, the element will be re-rendered and its
+## If the `onclick` event toggles the value of `is_checked`, the element will be re-rendered and its
 ## state will change to reflect its current "checkedness".
 ##
 ## Read more:
 ## https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 ## https://chinedufn.github.io/percy/html-macro/special-attributes/index.html
-checked : Bool -> { key : Str, value : Str }
+checked : Bool -> Attribute
 checked = boolean_attribute("checked")
 
 ## `disabled` is a boolean/binary attribute. Given `Bool.true` it'll be present on the element,
 ## otherwise it'll be absent. It's impossible to set it to a certain value like other attributes
 ## (e.g. `disabled="true"` or `disabled="1"`).
-disabled : Bool -> { key : Str, value : Str }
+disabled : Bool -> Attribute
 disabled = boolean_attribute("disabled")
 
 # Special attributes: https://chinedufn.github.io/percy/html-macro/special-attributes/index.html
@@ -245,10 +252,11 @@ disabled = boolean_attribute("disabled")
 # Attributes
 
 # Exposed generic function to create arbitrary attributes
-attribute = |key, v| { key, value: v }
+attribute : Str, Str -> Attribute
+attribute = |key, v| String({ key, value: v })
 
-attribute_function : Str -> (Str -> { key : Str, value : Str })
-attribute_function = |key| |v| { key, value: v }
+attribute_function : Str -> (Str -> Attribute)
+attribute_function = |key| |v| String({ key, value: v })
 
 accept = attribute_function("accept")
 accept_charset = attribute_function("accept-charset")

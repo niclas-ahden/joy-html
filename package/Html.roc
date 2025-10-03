@@ -1,6 +1,5 @@
 module [
     Html,
-    ssr_document,
     a,
     abbr,
     address,
@@ -32,6 +31,8 @@ module [
     div,
     dl,
     dt,
+    element,
+    element_with_events,
     em,
     embed,
     fieldset,
@@ -91,6 +92,7 @@ module [
     small,
     source,
     span,
+    ssr_document,
     strong,
     style,
     sub,

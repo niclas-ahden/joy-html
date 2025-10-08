@@ -1,1 +1,1 @@
-package [Html, Attribute] {}
+package [Html, Attribute, Event] {}

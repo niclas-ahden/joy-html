@@ -32,7 +32,6 @@ module [
     dl,
     dt,
     element,
-    element_with_events,
     em,
     embed,
     fieldset,
@@ -122,17 +121,6 @@ module [
 
 import Attribute exposing [Attribute]
 
-# TODO: Move `events` into `attrs` for an API like:
-#
-#     button([], [on_click("foo")])
-#
-# This would:
-# - Remove the need for `element` vs `element_with_events`. Why/how does `joy-html` decide which
-#   elements can/should have events?
-# - Make the API more "expected". `onclick` is an HTML attribute and users would naturally expect
-#   that it goes in the same argument slot as other attributes.
-# - Remove an unnecessary empty list of events for elements that _can_ have events, but don't:
-#       select([], [...children...], [])
 Html state : [
     None,
     Text Str,
@@ -140,14 +128,12 @@ Html state : [
         {
             tag : Str,
             attrs : List Attribute,
-            events : List { name : Str, handler : Str },
         }
         (List (Html state)),
     VoidElement
         {
             tag : Str,
             attrs : List Attribute,
-            events : List { name : Str, handler : Str },
         },
 ]
 
@@ -177,13 +163,15 @@ attrs_to_str = |attrs|
         |attr|
             when attr is
                 String(_) -> Bool.true
-                Boolean({ value }) -> value,
+                Boolean({ value }) -> value
+                Event(_) -> Bool.false, # Events are not rendered in SSR
     )
     |> List.map(
         |attr|
             when attr is
                 String({ key, value }) -> "${key}=\"${value}\""
-                Boolean({ key }) -> key,
+                Boolean({ key }) -> key
+                Event(_) -> "", # Events are not rendered in SSR
     )
     |> Str.join_with(" ")
 
@@ -192,25 +180,10 @@ text = |str| Text(str)
 
 element : Str -> (List Attribute, List (Html state) -> Html state)
 element = |tag|
-    |attrs, children| Element({ tag, attrs, events: [] }, children)
-
-element_with_events : Str -> (List Attribute, List { name : Str, handler : Str }, List (Html state) -> Html state)
-element_with_events = |tag|
-    |attrs, events, children| Element({ tag, attrs, events }, children)
+    |attrs, children| Element({ tag, attrs }, children)
 
 void_element = |tag|
-    |attrs| VoidElement({ tag, attrs, events: [] })
-
-void_element_with_events = |tag|
-    |attrs, events| VoidElement({ tag, attrs, events })
-
-# Elements
-
-# TODO: How do we want to handle events long-term?
-button = element_with_events("button")
-input = void_element_with_events("input")
-select = element_with_events("select")
-textarea = element_with_events("textarea")
+    |attrs| VoidElement({ tag, attrs })
 
 # Void elements
 area = void_element("area")
@@ -220,6 +193,7 @@ col = void_element("col")
 embed = void_element("embed")
 hr = void_element("hr")
 img = void_element("img")
+input = void_element("input")
 link = void_element("link")
 meta = void_element("meta")
 source = void_element("source")
@@ -238,6 +212,7 @@ bdi = element("bdi")
 bdo = element("bdo")
 blockquote = element("blockquote")
 body = element("body")
+button = element("button")
 canvas = element("canvas")
 caption = element("caption")
 cite = element("cite")
@@ -301,6 +276,7 @@ s = element("s")
 samp = element("samp")
 script = element("script")
 section = element("section")
+select = element("select")
 slot = element("slot")
 small = element("small")
 span = element("span")
@@ -314,6 +290,7 @@ table = element("table")
 tbody = element("tbody")
 td = element("td")
 template = element("template")
+textarea = element("textarea")
 tfoot = element("tfoot")
 th = element("th")
 thead = element("thead")

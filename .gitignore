@@ -6,3 +6,5 @@
 .direnv/
 .envrc
 generated-docs/
+release_docs/
+temp_docs/

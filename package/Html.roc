@@ -149,12 +149,19 @@ html_to_str_without_events = |h|
         None -> ""
         Text(t) -> t
         Element({ tag, attrs }, children) ->
-            open_tag = Str.join_with([tag, attrs_to_str(attrs)], " ")
-            "<${open_tag}>${List.map(children, |c| html_to_str_without_events(c)) |> Str.join_with("")}</${tag}>"
+            "<${open_tag(tag, attrs)}>${List.map(children, |c| html_to_str_without_events(c)) |> Str.join_with("")}</${tag}>"
 
         VoidElement({ tag, attrs }) ->
-            open_tag = Str.join_with([tag, attrs_to_str(attrs)], " ")
-            "<${open_tag} />"
+            "<${open_tag(tag, attrs)} />"
+
+## The inner text of a start tag. With render-able attributes it is
+## `tag attrs`; with none it is the bare `tag` — skipping the separator so an
+## attribute-less element does not emit a stray space (`<td >`).
+open_tag : Str, List Attribute -> Str
+open_tag = |tag, attrs|
+    when attrs_to_str(attrs) is
+        "" -> tag
+        attrs_str -> "${tag} ${attrs_str}"
 
 attrs_to_str : List Attribute -> Str
 attrs_to_str = |attrs|

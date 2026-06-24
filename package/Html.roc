@@ -171,14 +171,16 @@ attrs_to_str = |attrs|
             when attr is
                 String(_) -> Bool.true
                 Boolean({ value }) -> value
-                Event(_) -> Bool.false, # Events are not rendered in SSR
+                Event(_) -> Bool.false # Events are not rendered in SSR
+                Visibility(_) -> Bool.false, # Visibility observers are wired up client-side, not in SSR
     )
     |> List.map(
         |attr|
             when attr is
                 String({ key, value }) -> "${key}=\"${value}\""
                 Boolean({ key }) -> key
-                Event(_) -> "", # Events are not rendered in SSR
+                Event(_) -> "" # Events are not rendered in SSR
+                Visibility(_) -> "", # Visibility observers are wired up client-side, not in SSR
     )
     |> Str.join_with(" ")
 

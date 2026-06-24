@@ -98,6 +98,7 @@ module [
     name,
     nomodule,
     novalidate,
+    on_visible,
     oncontextmenu,
     open,
     optimum,
@@ -153,6 +154,7 @@ Attribute : [
     Boolean { key : Str, value : Bool },
     String { key : Str, value : Str },
     Event { name : Str, handler : Str, stop_propagation : Bool, prevent_default : Bool },
+    Visibility { on_visible : Str, rearm_key : Str, root_margin : Str },
     # NOTE: Perhaps we want `Enumerated` attributes in the future?
     # https://developer.mozilla.org/en-US/docs/Glossary/Enumerated
 ]
@@ -182,6 +184,41 @@ style = |styles|
 data : Str, Str -> Attribute
 data = |data_name, data_value|
     String({ key: "data-${data_name}", value: data_value })
+
+## Observe when this element enters the viewport. The renderer attaches an
+## `IntersectionObserver` when the element is created (including on hydration) and
+## disconnects it when the element is removed, so the observer lifetime follows the
+## element.
+##
+## `on_visible` is the encoded event fired on each crossing into view (not continuously
+## while visible).
+##
+## `root_margin` grows or shrinks the viewport rectangle used for the intersection test,
+## in CSS-margin syntax. `"200px"` fires 200px before the element scrolls into view, which
+## lets a page prefetch ahead. Pass `""` for the browser default.
+##
+## `rearm_key` is a dependency string that re-arms the observer. `IntersectionObserver`
+## only fires on a change in visibility, so a sentinel still on screen after an event
+## never fires again. Changing `rearm_key` re-observes the element and re-emits its
+## visibility. Set it to a value that changes per event (e.g. a pagination cursor so that
+## an infinite scroll loads the next batch). A constant key never re-arms. Guard the event
+## in your update (a loading flag or exhausted cursor) so re-arms are harmless.
+##
+## ```
+## Html.div(
+##     [
+##         Attribute.on_visible({
+##             root_margin: "200px",
+##             on_visible: encode_event(ScrollSentinelVisible),
+##             rearm_key: model.cursor,
+##         }),
+##     ],
+##     [],
+## )
+## ```
+on_visible : { root_margin : Str, on_visible : Str, rearm_key : Str } -> Attribute
+on_visible = |{ root_margin, on_visible: event, rearm_key }|
+    Visibility({ on_visible: event, rearm_key, root_margin })
 
 aria : Str, Str -> Attribute
 aria = |aria_name, aria_value|

@@ -150,6 +150,8 @@ module [
     wrap,
 ]
 
+import Internal
+
 Attribute : [
     Boolean { key : Str, value : Bool },
     String { key : Str, value : Str },
@@ -183,7 +185,9 @@ style = |styles|
 
 data : Str, Str -> Attribute
 data = |data_name, data_value|
-    String({ key: "data-${data_name}", value: data_value })
+    String({ key: "data-${Internal.sanitize_name(data_name)}", value: data_value })
+
+expect data("x\" y", "v") == String({ key: "data-xy", value: "v" })
 
 ## Observe when this element enters the viewport. The renderer attaches an
 ## `IntersectionObserver` when the element is created (including on hydration) and
@@ -222,7 +226,7 @@ on_visible = |{ root_margin, on_visible: event, rearm_key }|
 
 aria : Str, Str -> Attribute
 aria = |aria_name, aria_value|
-    String({ key: "aria-${aria_name}", value: aria_value })
+    String({ key: "aria-${Internal.sanitize_name(aria_name)}", value: aria_value })
 
 # Boolean attributes: https://chinedufn.github.io/percy/html-macro/boolean-attributes/index.html
 
@@ -289,9 +293,16 @@ disabled = boolean_attribute("disabled")
 
 # Attributes
 
-# Exposed generic function to create arbitrary attributes
+## Create an attribute with an arbitrary key. The key is sanitized.
+## Characters other than ASCII letters, digits, `-`, `_`, `.` and `:` are
+## stripped so a caller-supplied key cannot break out of the attribute
+## position.
 attribute : Str, Str -> Attribute
-attribute = |key, v| String({ key, value: v })
+attribute = |key, v| String({ key: Internal.sanitize_name(key), value: v })
+
+expect
+    attribute("x\" onmouseover=\"alert(1)\" y", "v")
+    == String({ key: "xonmouseoveralert1y", value: "v" })
 
 attribute_function : Str -> (Str -> Attribute)
 attribute_function = |key| |v| String({ key, value: v })

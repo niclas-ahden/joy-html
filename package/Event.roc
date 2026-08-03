@@ -1,280 +1,121 @@
-module [
-    # Click events
-    on_click,
-    on_click_stop_propagation,
-    on_click_prevent_default,
-    on_click_custom,
-    # Input events
-    on_input,
-    on_input_stop_propagation,
-    on_input_prevent_default,
-    on_input_custom,
-    # Change events
-    on_change,
-    on_change_stop_propagation,
-    on_change_prevent_default,
-    on_change_custom,
-    # Keyup events
-    on_keyup,
-    on_keyup_stop_propagation,
-    on_keyup_prevent_default,
-    on_keyup_custom,
-    # Keydown events
-    on_keydown,
-    on_keydown_stop_propagation,
-    on_keydown_prevent_default,
-    on_keydown_custom,
-    # Touchstart events
-    on_touchstart,
-    on_touchstart_stop_propagation,
-    on_touchstart_prevent_default,
-    on_touchstart_custom,
-    # Touchmove events
-    on_touchmove,
-    on_touchmove_stop_propagation,
-    on_touchmove_prevent_default,
-    on_touchmove_custom,
-    # Touchend events
-    on_touchend,
-    on_touchend_stop_propagation,
-    on_touchend_prevent_default,
-    on_touchend_custom,
-    # Mousedown events
-    on_mousedown,
-    on_mousedown_stop_propagation,
-    on_mousedown_prevent_default,
-    on_mousedown_custom,
-    # Mousemove events
-    on_mousemove,
-    on_mousemove_stop_propagation,
-    on_mousemove_prevent_default,
-    on_mousemove_custom,
-    # Mouseup events
-    on_mouseup,
-    on_mouseup_stop_propagation,
-    on_mouseup_prevent_default,
-    on_mouseup_custom,
-    # Mouseleave events
-    on_mouseleave,
-    on_mouseleave_stop_propagation,
-    on_mouseleave_prevent_default,
-    on_mouseleave_custom,
-]
-
+## Event handlers for HTML elements.
+##
+## Each `on_*` function builds an `Attribute(msg)` that sends a message to
+## your update function when the event fires. Simple events take the
+## message directly, value events take a function from the event's value
+## to a message:
+##
+## ```roc
+## Html.button([Event.on_click(Increment)], [Html.text("+")])
+## Html.input([Event.on_input(|s| NameTyped(s))], [])
+## ```
+##
+## Keyboard, pointer, file and visibility handlers live in `Attribute`.
+## Handlers are omitted from server-rendered output and only take effect
+## in the browser.
+##
+## To stop an event at its element or suppress the browser default, chain
+## the `Attribute` modifiers on any handler:
+## `Event.on_click(Ignored).stop_propagation()`.
 import Attribute exposing [Attribute]
+# Html is only used by the expects at the bottom.
+import Html exposing [Html]
 
-# Click events
+Event := [].{
+    ## Send `msg` on click.
+    on_click : msg -> Attribute(msg)
+    on_click = |msg| Attribute.on_click(msg)
 
-on_click : Str -> Attribute
-on_click = |handler|
-    Event({ name: "onclick", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
+    ## Send the message produced from the input's value on every keystroke.
+    on_input : (Str -> msg) -> Attribute(msg)
+    on_input = |to_msg| Attribute.on_input(to_msg)
 
-on_click_stop_propagation : Str, Bool -> Attribute
-on_click_stop_propagation = |handler, should_stop|
-    Event({ name: "onclick", handler, stop_propagation: should_stop, prevent_default: Bool.false })
+    ## Send the message produced from the control's `value` when it commits a
+    ## change. Reads `value` for every element type, so one handler on a
+    ## radio group receives the selected radio's value. For a checkbox's
+    ## on/off state use `on_check`.
+    on_change : (Str -> msg) -> Attribute(msg)
+    on_change = |to_msg| Attribute.on_change(to_msg)
 
-on_click_prevent_default : Str, Bool -> Attribute
-on_click_prevent_default = |handler, should_prevent|
-    Event({ name: "onclick", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
+    ## Send the message produced from a checkbox's checked state when it
+    ## changes: `on_check(|now| UserToggled(now))`. Don't combine with
+    ## `on_change` on the same element, see `Attribute.on_check`.
+    on_check : (Bool -> msg) -> Attribute(msg)
+    on_check = |to_msg| Attribute.on_check(to_msg)
 
-on_click_custom : Str, Bool, Bool -> Attribute
-on_click_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onclick", handler, stop_propagation, prevent_default })
+    ## Send `msg` when a touch starts on this element.
+    on_touchstart : msg -> Attribute(msg)
+    on_touchstart = |msg| Attribute.on("touchstart", msg)
 
-# Input events
+    ## Send `msg` when a touch ends on this element.
+    on_touchend : msg -> Attribute(msg)
+    on_touchend = |msg| Attribute.on("touchend", msg)
+}
 
-on_input : Str -> Attribute
-on_input = |handler|
-    Event({ name: "oninput", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
+# --- roc test (run via `roc test --main=package/main.roc package/Event.roc`) ---
+# Attribute variants are only matchable inside Attribute.roc, so these tests
+# pin the facade through what it does expose: SSR output (event attributes are
+# skipped in server rendering, exactly like the Attribute constructors they
+# delegate to, whose construction is pinned in Attribute.roc) and the
+# `Attribute.stops_propagation` / `Attribute.prevents_default` accessors.
 
-on_input_stop_propagation : Str, Bool -> Attribute
-on_input_stop_propagation = |handler, should_stop|
-    Event({ name: "oninput", handler, stop_propagation: should_stop, prevent_default: Bool.false })
+# The modifiers dispatch on Attribute, so they chain onto the facade's
+# handlers like anything else that returns one.
 
-on_input_prevent_default : Str, Bool -> Attribute
-on_input_prevent_default = |handler, should_prevent|
-    Event({ name: "oninput", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
+expect Attribute.stops_propagation(Event.on_click("clicked").stop_propagation())
+expect !Attribute.stops_propagation(Event.on_click("clicked"))
+expect Attribute.prevents_default(Event.on_click("clicked").prevent_default())
+expect !Attribute.prevents_default(Event.on_click("clicked"))
 
-on_input_custom : Str, Bool, Bool -> Attribute
-on_input_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "oninput", handler, stop_propagation, prevent_default })
+expect Attribute.stops_propagation(Event.on_input(|s| "typed:${s}").stop_propagation())
+expect !Attribute.stops_propagation(Event.on_input(|s| "typed:${s}"))
 
-# Change events
+expect Attribute.stops_propagation(Event.on_change(|s| "chose:${s}").stop_propagation())
+expect !Attribute.stops_propagation(Event.on_change(|s| "chose:${s}"))
 
-on_change : Str -> Attribute
-on_change = |handler|
-    Event({ name: "onchange", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
+# One modifier leaves the other flag alone, and chaining sets both.
+expect !Attribute.prevents_default(Event.on_click("clicked").stop_propagation())
+expect {
+    both = Event.on_click("clicked").stop_propagation().prevent_default()
+    Attribute.stops_propagation(both) and Attribute.prevents_default(both)
+}
 
-on_change_stop_propagation : Str, Bool -> Attribute
-on_change_stop_propagation = |handler, should_stop|
-    Event({ name: "onchange", handler, stop_propagation: should_stop, prevent_default: Bool.false })
+# Non-event attributes report False rather than failing to match, and the
+# modifiers leave them untouched.
+expect !Attribute.stops_propagation(Attribute.class("btn"))
+expect !Attribute.stops_propagation(Attribute.class("btn").stop_propagation())
+expect !Attribute.prevents_default(Attribute.class("btn").prevent_default())
+expect Attribute.stops_propagation(Event.on_check(|b| if b "on" else "off").stop_propagation())
+expect Attribute.stops_propagation(Event.on_touchstart("start").stop_propagation())
 
-on_change_prevent_default : Str, Bool -> Attribute
-on_change_prevent_default = |handler, should_prevent|
-    Event({ name: "onchange", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
+expect
+    Html.render(Html.button([Event.on_click("clicked")], [Html.text("Go")]))
+    == "<button>Go</button>"
 
-on_change_custom : Str, Bool, Bool -> Attribute
-on_change_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onchange", handler, stop_propagation, prevent_default })
+expect
+    Html.render(Html.button([Event.on_click("clicked").stop_propagation()], [Html.text("Go")]))
+    == "<button>Go</button>"
 
-# Keyup events
+expect
+    Html.render(Html.input([Event.on_input(|s| "typed:${s}"), Attribute.value("v")]))
+    == "<input value=\"v\" />"
 
-on_keyup : Str -> Attribute
-on_keyup = |handler|
-    Event({ name: "onkeyup", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
+expect
+    Html.render(Html.input([Event.on_input(|s| "typed:${s}").stop_propagation()]))
+    == "<input />"
 
-on_keyup_stop_propagation : Str, Bool -> Attribute
-on_keyup_stop_propagation = |handler, should_stop|
-    Event({ name: "onkeyup", handler, stop_propagation: should_stop, prevent_default: Bool.false })
+expect
+    Html.render(Html.select([Event.on_change(|s| "chose:${s}")], []))
+    == "<select></select>"
 
-on_keyup_prevent_default : Str, Bool -> Attribute
-on_keyup_prevent_default = |handler, should_prevent|
-    Event({ name: "onkeyup", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
+expect
+    Html.render(Html.select([Event.on_change(|s| "chose:${s}").prevent_default()], []))
+    == "<select></select>"
 
-on_keyup_custom : Str, Bool, Bool -> Attribute
-on_keyup_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onkeyup", handler, stop_propagation, prevent_default })
+expect
+    Html.render(Html.input([Event.on_check(|b| if b "on" else "off"), Attribute.type("checkbox")]))
+    == "<input type=\"checkbox\" />"
 
-# Keydown events
-
-on_keydown : Str -> Attribute
-on_keydown = |handler|
-    Event({ name: "onkeydown", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_keydown_stop_propagation : Str, Bool -> Attribute
-on_keydown_stop_propagation = |handler, should_stop|
-    Event({ name: "onkeydown", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_keydown_prevent_default : Str, Bool -> Attribute
-on_keydown_prevent_default = |handler, should_prevent|
-    Event({ name: "onkeydown", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_keydown_custom : Str, Bool, Bool -> Attribute
-on_keydown_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onkeydown", handler, stop_propagation, prevent_default })
-
-# Touchstart events
-
-on_touchstart : Str -> Attribute
-on_touchstart = |handler|
-    Event({ name: "ontouchstart", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_touchstart_stop_propagation : Str, Bool -> Attribute
-on_touchstart_stop_propagation = |handler, should_stop|
-    Event({ name: "ontouchstart", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_touchstart_prevent_default : Str, Bool -> Attribute
-on_touchstart_prevent_default = |handler, should_prevent|
-    Event({ name: "ontouchstart", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_touchstart_custom : Str, Bool, Bool -> Attribute
-on_touchstart_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "ontouchstart", handler, stop_propagation, prevent_default })
-
-# Touchmove events
-
-on_touchmove : Str -> Attribute
-on_touchmove = |handler|
-    Event({ name: "ontouchmove", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_touchmove_stop_propagation : Str, Bool -> Attribute
-on_touchmove_stop_propagation = |handler, should_stop|
-    Event({ name: "ontouchmove", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_touchmove_prevent_default : Str, Bool -> Attribute
-on_touchmove_prevent_default = |handler, should_prevent|
-    Event({ name: "ontouchmove", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_touchmove_custom : Str, Bool, Bool -> Attribute
-on_touchmove_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "ontouchmove", handler, stop_propagation, prevent_default })
-
-# Touchend events
-
-on_touchend : Str -> Attribute
-on_touchend = |handler|
-    Event({ name: "ontouchend", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_touchend_stop_propagation : Str, Bool -> Attribute
-on_touchend_stop_propagation = |handler, should_stop|
-    Event({ name: "ontouchend", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_touchend_prevent_default : Str, Bool -> Attribute
-on_touchend_prevent_default = |handler, should_prevent|
-    Event({ name: "ontouchend", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_touchend_custom : Str, Bool, Bool -> Attribute
-on_touchend_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "ontouchend", handler, stop_propagation, prevent_default })
-
-# Mousedown events
-
-on_mousedown : Str -> Attribute
-on_mousedown = |handler|
-    Event({ name: "onmousedown", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_mousedown_stop_propagation : Str, Bool -> Attribute
-on_mousedown_stop_propagation = |handler, should_stop|
-    Event({ name: "onmousedown", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_mousedown_prevent_default : Str, Bool -> Attribute
-on_mousedown_prevent_default = |handler, should_prevent|
-    Event({ name: "onmousedown", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_mousedown_custom : Str, Bool, Bool -> Attribute
-on_mousedown_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onmousedown", handler, stop_propagation, prevent_default })
-
-# Mousemove events
-
-on_mousemove : Str -> Attribute
-on_mousemove = |handler|
-    Event({ name: "onmousemove", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_mousemove_stop_propagation : Str, Bool -> Attribute
-on_mousemove_stop_propagation = |handler, should_stop|
-    Event({ name: "onmousemove", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_mousemove_prevent_default : Str, Bool -> Attribute
-on_mousemove_prevent_default = |handler, should_prevent|
-    Event({ name: "onmousemove", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_mousemove_custom : Str, Bool, Bool -> Attribute
-on_mousemove_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onmousemove", handler, stop_propagation, prevent_default })
-
-# Mouseup events
-
-on_mouseup : Str -> Attribute
-on_mouseup = |handler|
-    Event({ name: "onmouseup", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_mouseup_stop_propagation : Str, Bool -> Attribute
-on_mouseup_stop_propagation = |handler, should_stop|
-    Event({ name: "onmouseup", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_mouseup_prevent_default : Str, Bool -> Attribute
-on_mouseup_prevent_default = |handler, should_prevent|
-    Event({ name: "onmouseup", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_mouseup_custom : Str, Bool, Bool -> Attribute
-on_mouseup_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onmouseup", handler, stop_propagation, prevent_default })
-
-# Mouseleave events
-
-on_mouseleave : Str -> Attribute
-on_mouseleave = |handler|
-    Event({ name: "onmouseleave", handler, stop_propagation: Bool.false, prevent_default: Bool.false })
-
-on_mouseleave_stop_propagation : Str, Bool -> Attribute
-on_mouseleave_stop_propagation = |handler, should_stop|
-    Event({ name: "onmouseleave", handler, stop_propagation: should_stop, prevent_default: Bool.false })
-
-on_mouseleave_prevent_default : Str, Bool -> Attribute
-on_mouseleave_prevent_default = |handler, should_prevent|
-    Event({ name: "onmouseleave", handler, stop_propagation: Bool.false, prevent_default: should_prevent })
-
-on_mouseleave_custom : Str, Bool, Bool -> Attribute
-on_mouseleave_custom = |handler, stop_propagation, prevent_default|
-    Event({ name: "onmouseleave", handler, stop_propagation, prevent_default })
+expect
+    Html.render(Html.div([Event.on_touchstart("start"), Event.on_touchend("end")], [Html.text("t")]))
+    == "<div>t</div>"

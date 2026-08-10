@@ -1,8 +1,7 @@
 ## Build HTML with plain Roc functions.
 ##
-## `Html(msg)` is a tree of elements. The `msg` parameter is the type of
-## message your event handlers produce, so a view for an app with a `Msg`
-## union has the type `Model -> Html(Msg)`:
+## `Html(msg)` is a tree of elements. `msg` is the type your event handlers
+## produce, so a view has the type `Model -> Html(Msg)`:
 ##
 ## ```roc
 ## view = |model|
@@ -13,15 +12,14 @@
 ## ```
 ##
 ## Every element helper takes a list of attributes and a list of children.
-## Elements without a helper can be built with `element`. `text` escapes
-## its string, so it always shows up exactly as written.
+## Use `element` for a tag with no helper and `text` for text, which is
+## always escaped and so never turns into markup.
 ##
-## Render a tree to a string with `render`, or with `ssr_document` for a
-## full page with a doctype. Rendering escapes text and attribute values,
-## keeps script text inert (load JavaScript via the `src` attribute
-## instead), and emits void elements like `br` and `img` as self-closing
-## tags. Event handlers produce no output when rendering. They come into
-## play when the same view runs in the browser under a joy-zig client.
+## `render` turns a tree into an HTML string and `ssr_document` adds the
+## doctype. Event handlers render as nothing: they come to life when the
+## same view runs in the browser under a joy-zig client. For big views,
+## `lazy` skips re-rendering regions that did not change and `keyed` keeps
+## list items matched to their data.
 ##
 ## Attributes live in `Attribute` and event handlers in `Event`.
 import Attribute exposing [Attribute]
@@ -29,11 +27,12 @@ import Attribute exposing [Attribute]
 Html(msg) := [
     Text(Str),
     Element(Str, List(Attribute(msg)), List(Html(msg))),
+    Keyed(Str, Box(Html(msg))),
     Lazy(Box(({} -> Html(msg)))),
 ].{
-    ## Embed a child view with its own message type: every message a handler
-    ## in `html` produces is passed through `f` on its way to `update!`, so a
-    ## component can own its Msg union and the parent wraps it:
+    ## Use a view that has its own message type. Every message its handlers
+    ## produce goes through `f` on the way to `update!`, so a component can
+    ## own a Msg union and the parent wraps it:
     ## `Html.map(counter_view(model.left), |m| LeftCounter(m))`.
     map : Html(a), (a -> b) -> Html(b)
     map = |html_, f|
@@ -45,6 +44,7 @@ Html(msg) := [
             # never skips. Produce the parent's msg type inside the thunk
             # instead of mapping over `lazy` when the skip matters.
             Lazy(thunk) => Lazy(Box.box(|_| Html.map((Box.unbox(thunk))({}), f)))
+            Keyed(key, child) => Keyed(key, Box.box(Html.map(Box.unbox(child), f)))
         }
 
     ## A text node. The string is entity-escaped when rendered, so it shows
@@ -52,22 +52,20 @@ Html(msg) := [
     text : Str -> Html(msg)
     text = |s| Text(s)
 
-    ## Defer a subtree: the runtime runs `view` only when its inputs changed
-    ## since the previous render. The inputs are `view` itself and the
-    ## arguments, compared byte for byte. When they all match, the retained
-    ## subtree is reused and `view` never runs, so wrap expensive regions and
-    ## pass exactly the model slices they read:
-    ## `Html.lazy2(render_cards, model.users, model.category)`.
+    ## Skip re-rendering a region whose inputs did not change. Wrap an
+    ## expensive part of the view and pass the model fields it reads:
+    ## `Html.lazy2(render_cards, model.users, model.category)`. While both
+    ## fields stay the same, the previous subtree is kept and `render_cards`
+    ## never runs.
     ##
-    ## The arguments are what gets compared, which is why they are slices and
-    ## not the model: pass the whole model and the whole model is compared, so
-    ## one unrelated field changing forces the region. `lazy2` through `lazy8`
-    ## take more inputs, and past eight, you can pass a record to `lazy`.
+    ## Pass fields and not the whole model: everything you pass is compared,
+    ## so one unrelated field changing costs you the skip. The view has to be
+    ## a named function too, because a lambda written at the call site is a
+    ## new value every render and never matches. Same for arguments built
+    ## during the render, like a mapped list or an interpolated string. They
+    ## are safe to pass, they just never skip.
     ##
-    ## `view` must be a named function, not a lambda written at the call site:
-    ## a lambda is a new value on every render and never compares equal. The
-    ## same goes for arguments built during the render (a mapped list, an
-    ## interpolated string). Passing those is safe but skips nothing.
+    ## `lazy2` through `lazy8` take more inputs. Past eight, pass a record.
     lazy : (a -> Html(msg)), a -> Html(msg)
     lazy = |view, a| Lazy(Box.box(|_| view(a)))
 
@@ -99,18 +97,37 @@ Html(msg) := [
     lazy8 : (a, b, c, d, e, f, g, h -> Html(msg)), a, b, c, d, e, f, g, h -> Html(msg)
     lazy8 = |view, a, b, c, d, e, f, g, h| Lazy(Box.box(|_| view(a, b, c, d, e, f, g, h)))
 
+    ## Keep a list item tied to its data when the list changes. Children with
+    ## no key are matched by position, so removing the first row shifts every
+    ## row below it and whatever the browser holds (typed text, focus, scroll
+    ## position, a running animation) stays behind at the old position. A key
+    ## makes those move with the item instead:
+    ##
+    ## ```roc
+    ## Html.ul([], model.rows.map(|row| Html.keyed(row.id, render_row(row))))
+    ## ```
+    ##
+    ## Key every child of the list rather than a few, and use something from
+    ## the data that is unique among siblings and survives a reorder, so not
+    ## the list index. The key itself is never rendered. Rows that are also
+    ## expensive to build can skip that too:
+    ## `Html.keyed(row.id, Html.lazy2(render_row, row, is_selected))`.
+    ##
+    ## (Elm and Lustre put the key on the container. Here it goes on the
+    ## child, so there is no separate keyed container helper.)
+    keyed : Str, Html(msg) -> Html(msg)
+    keyed = |key, child| Keyed(key, Box.box(child))
+
     ## Create an element with an arbitrary tag name. The name is sanitized.
     ## Characters other than ASCII letters, digits, `-`, `_`, `.` and `:`
     ## are stripped so a caller-supplied string cannot inject markup.
     element : Str, List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     element = |tag, attrs, children| Element(Attribute.sanitize_name(tag), attrs, children)
 
-    ## Render a tree to an HTML string (server-side rendering). Text is
-    ## entity-escaped, attribute values are escaped inside double quotes,
-    ## event attributes are skipped and void elements render as `<tag />`.
-    ## `script` text is escaped like any other text and therefore inert,
-    ## while `style` text is emitted raw so inline CSS works. See `script`
-    ## and `style` for the details.
+    ## Render a tree to an HTML string (server-side rendering). Text and
+    ## attribute values are escaped, event handlers are skipped and void
+    ## elements render as `<tag />`. Inline `script` text is escaped like any
+    ## other text and so cannot run, while `style` text is emitted raw.
     render : Html(msg) -> Str
     render = |h| render_node(h)
 
@@ -241,11 +258,9 @@ Html(msg) := [
     progress : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     progress = |attrs, children| Element("progress", attrs, children)
 
-    ## Inline script text is entity-escaped like all other text, which makes
-    ## it inert. Browsers do not decode entities inside `<script>`, so `<`
-    ## and `&` in the source arrive as literal entity text and the script
-    ## cannot run. Load JavaScript via the `src` attribute instead of inline
-    ## text.
+    ## Load JavaScript with the `src` attribute. Inline script text is
+    ## escaped like any other text, and browsers do not decode entities
+    ## inside `<script>`, so an inline script never runs.
     script : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     script = |attrs, children| Element("script", attrs, children)
 
@@ -266,9 +281,9 @@ Html(msg) := [
     strong : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     strong = |attrs, children| Element("strong", attrs, children)
 
-    ## Style text children are emitted raw (not entity-escaped) so inline
-    ## CSS works as written. The only rewrite is `</` to `<\/`, using the
-    ## CSS escape for `/`, so the text can never close the element.
+    ## Style text is emitted raw, not escaped, so inline CSS works as
+    ## written. The one rewrite is `</` to `<\/` (the CSS escape for `/`), so
+    ## the text cannot close the element early.
     style : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     style = |attrs, children| Element("style", attrs, children)
 
@@ -290,9 +305,9 @@ Html(msg) := [
     td : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     td = |attrs, children| Element("td", attrs, children)
 
-    ## Markup the browser parses but does not render or run until it is
-    ## cloned by script. Its children are ordinary `Html`, escaped like any
-    ## other, so this is a holding pen and not a raw-markup escape hatch.
+    ## Markup the browser parses but does not render or run until a script
+    ## clones it. Its children are ordinary `Html` and are escaped like any
+    ## other, so this is a holding pen, not a raw-markup escape hatch.
     template : List(Attribute(msg)), List(Html(msg)) -> Html(msg)
     template = |attrs, children| Element("template", attrs, children)
 
@@ -394,6 +409,7 @@ render_node = |h|
         # SSR has no retained previous render, so a lazy subtree is simply
         # forced.
         Lazy(thunk) => render_node((Box.unbox(thunk))({}))
+        Keyed(_key, child) => render_node(Box.unbox(child))
         Text(t) => escape_text(t)
         Element(tag, attrs, children) =>
             if is_void_tag(tag) {
@@ -456,7 +472,7 @@ open_tag = |tag, attrs| {
     }
 }
 
-## Render-able attributes joined with single spaces. Events, keys, false
+## Render-able attributes joined with single spaces. Handlers, false
 ## booleans and visibility observers produce "" from `Attribute.to_ssr_str`
 ## and are dropped here so they leave no stray separator.
 attrs_to_str : List(Attribute(msg)), U64, Str -> Str

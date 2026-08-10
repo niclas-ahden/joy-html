@@ -1,22 +1,20 @@
 ## Attributes for HTML elements.
 ##
-## Common attributes have helpers that take the value as a string, like
-## `class("btn")`, `href("/about")` and `placeholder("Name")`. Boolean
-## attributes take a `Bool` and only appear when true, like
-## `disabled(Bool.True)` and `checked(is_done)`. Anything without a helper
-## can be set with `attribute("data-foo", "bar")`, and `data`, `aria`,
-## `classes`, `class_list` and `style` cover the usual dynamic cases.
+## Most attributes take a string, like `class("btn")` and `href("/about")`.
+## Boolean ones take a `Bool` and only appear when true, like
+## `disabled(Bool.True)`. Anything without a helper goes through
+## `attribute("data-foo", "bar")`, and `data`, `aria`, `classes`,
+## `class_list` and `style` cover the usual dynamic cases.
 ##
-## Event handlers are attributes too. They carry typed messages rather
-## than handler strings: `on_click(msg)` sends `msg` to your update
-## function when the element is clicked, and `on_input(|s| Typed(s))`
-## builds the message from the input's current value. That second one
-## takes a function and not a bare `Typed`, because Roc tag constructors
-## are not functions. The most common handlers are also exposed from the
-## `Event` module.
+## Event handlers are attributes too, carrying a typed message instead of a
+## handler string: `on_click(Saved)` sends `Saved` to your update function,
+## and `on_input(|s| Typed(s))` builds the message from the input's current
+## value. The second one takes a function rather than a bare `Typed`
+## because Roc tag constructors are not functions. The everyday handlers
+## are also re-exported from the shorter `Event` module.
 ##
-## Attribute values are escaped when rendered and attribute names are
-## sanitized, so a dynamic string cannot break out of its attribute.
+## Values are escaped and names are sanitized when rendered, so a dynamic
+## string cannot break out of its attribute.
 
 Attribute(msg) := [
 	Boolean(Str, Bool),
@@ -25,9 +23,6 @@ Attribute(msg) := [
 	## decoder of the `FileInfo` record, fired when a file input's selection
 	## changes. See `on_file`.
 	FileHandler(Box(FileInfo -> Box(msg))),
-
-	## Child identity for list reconciliation. See `key`.
-	Key(Str),
 
 	## event name, key filter (empty matches all), prevent_default,
 	## stop_propagation, decoder of the `KeyEvent` record. See `on_keydown`.
@@ -49,15 +44,13 @@ Attribute(msg) := [
 	VisibilityHandler(Str, Str, Box(msg)),
 ].{
 
-	## The pointer event record delivered to `on_pointer` handlers. Annotate
-	## handlers as `Attribute.PointerEvent`. `client_x`/`client_y` are
-	## viewport coordinates, `page_x`/`page_y` include scroll, and
-	## `offset_x`/`offset_y` are relative to the target element's padding
-	## box. `button` is the button that caused a press (0 left/touch, 1
-	## middle, 2 right). `buttons` is the bitmask of buttons currently held
-	## (1 left, 2 right, 4 middle), which is what move handlers usually want
-	## (`e.buttons != 0` = dragging). The four modifier flags say whether
-	## that modifier was held when the event fired.
+	## The record `on_pointer` handlers receive, annotated as
+	## `Attribute.PointerEvent`. `client_x`/`client_y` are viewport
+	## coordinates, `page_x`/`page_y` include scroll and
+	## `offset_x`/`offset_y` are relative to the element itself. `button` is
+	## the button that caused a press (0 left or touch, 1 middle, 2 right),
+	## while `buttons` is the bitmask of buttons held right now, which is
+	## what move handlers want: `e.buttons != 0` means a drag is under way.
 	PointerEvent : {
 		client_x : F64,
 		client_y : F64,
@@ -73,15 +66,13 @@ Attribute(msg) := [
 		meta : Bool,
 	}
 
-	## The keyboard event record delivered to `on_key` handlers. Annotate
-	## handlers as `Attribute.KeyEvent`. `key` is the character the keypress
-	## produced ("a", "A") or the name of a non-printing key ("Enter",
-	## "Escape", "ArrowLeft"), and is affected by the keyboard layout and by
-	## Shift. `code` is the physical key's location ("KeyA", "Enter"), which
-	## is the one to match on for WASD-style controls. `repeat` is true while
-	## a held key auto-repeats, and `is_composing` is true mid-IME
-	## composition, when a keystroke is being combined into a character and
-	## should usually be ignored.
+	## The record `on_key` handlers receive, annotated as
+	## `Attribute.KeyEvent`. `key` is what the keypress produced ("a", "A")
+	## or the name of a non-printing key ("Enter", "ArrowLeft"), so it
+	## follows the keyboard layout and Shift. `code` is the physical key
+	## ("KeyA"), the one to match for WASD-style controls. `repeat` is true
+	## while a held key auto-repeats, and `is_composing` is true mid-IME
+	## composition, where the keystroke should usually be ignored.
 	KeyEvent : {
 		key : Str,
 		code : Str,
@@ -110,7 +101,6 @@ Attribute(msg) := [
 	map = |attr, f|
 		match attr {
 			Boolean(name_, val) => Boolean(name_, val)
-			Key(val) => Key(val)
 			String(name_, val) => String(name_, val)
 			MsgHandler(name_, pd, sp, msg) => MsgHandler(name_, pd, sp, Box.box(f(Box.unbox(msg))))
 			PropertyHandler(name_, prop, pd, sp, cb) =>
@@ -164,11 +154,9 @@ Attribute(msg) := [
 		}
 
 	## SSR text for one attribute, used by `Html.render`. String attributes
-	## render as `key="escaped value"` with `&` and `"` entity-escaped.
-	## Boolean attributes render as the bare key when true and disappear
-	## when false (HTML boolean attribute semantics). Everything else
-	## (events, keys, visibility observers) is a client-side concern and
-	## renders as "", which the caller drops.
+	## render as `name="escaped value"`, boolean ones as the bare name when
+	## true and nothing when false. Handlers and visibility observers are a
+	## client-side concern and render as "", which the caller drops.
 	to_ssr_str : Attribute(msg) -> Str
 	to_ssr_str = |attr|
 		match attr {
@@ -181,11 +169,10 @@ Attribute(msg) := [
 			_ => ""
 		}
 
-	## Stop the event at this element instead of letting it bubble on to
-	## ancestor handlers: `on_click(Ignored).stop_propagation()`. This is
-	## what keeps a click inside a modal from reaching a backdrop that
-	## closes it. No effect on attributes that are not event handlers, and
-	## SSR ignores it like every other handler concern.
+	## Stop the event here instead of letting it bubble on to ancestor
+	## handlers: `on_click(Ignored).stop_propagation()`. This is what keeps a
+	## click inside a modal from reaching the backdrop that closes it.
+	## Ignored on anything that is not an event handler, and in SSR.
 	stop_propagation : Attribute(msg) -> Attribute(msg)
 	stop_propagation = |attr|
 		match attr {
@@ -198,9 +185,9 @@ Attribute(msg) := [
 
 	## Suppress the browser's default action for this event:
 	## `on_click(Navigate).prevent_default()` on a link keeps the browser
-	## from following its href. On a key handler with a key filter the
-	## default is only suppressed for the listed keys. No effect on
-	## attributes that are not event handlers, and SSR ignores it.
+	## from following its href. On a key handler with a key filter only the
+	## listed keys are suppressed. Ignored on anything that is not an event
+	## handler, and in SSR.
 	prevent_default : Attribute(msg) -> Attribute(msg)
 	prevent_default = |attr|
 		match attr {
@@ -213,13 +200,9 @@ Attribute(msg) := [
 
 	## Whether this attribute stops the event at its element, the flag the
 	## client runtime reads to decide on a stopPropagation call. False for
-	## everything that is not an event handler carrying the flag, including
-	## every non-event attribute. SSR ignores it (see `to_ssr_str`).
-	##
-	## Exposed because the variants themselves are private to this module, so
-	## this is the only way a renderer or a facade like `Event` can see the
-	## flag. Without it a delegating wrapper can drop the flag and no test
-	## outside this file can tell.
+	## anything that is not an event handler. Exposed because the variants
+	## are private to this module, so this is the only way a renderer or a
+	## facade like `Event` can see the flag.
 	stops_propagation : Attribute(msg) -> Bool
 	stops_propagation = |attr|
 		match attr {
@@ -244,12 +227,11 @@ Attribute(msg) := [
 		}
 
 	## Strip every character that is not an ASCII letter, digit, `-`, `_`,
-	## `.` or `:` from an HTML tag or attribute name. Names come in as plain
-	## strings via `Html.element` and `attribute`/`data`/`aria`, and no
-	## quoting can make a bad character safe in name position. A space or
-	## `>` in a key breaks out of the tag no matter how the value is
-	## escaped, so the only safe rewrite is removal. Sanitizing here, where
-	## the string enters the tree, covers both SSR and client rendering.
+	## `.` or `:` from a tag or attribute name. A space or `>` in a name
+	## breaks out of the tag however the value is escaped, and no quoting can
+	## make it safe there, so it is removed instead. Applied by
+	## `Html.element`, `attribute`, `data` and `aria` as the string enters
+	## the tree, which covers both SSR and client rendering.
 	sanitize_name : Str -> Str
 	sanitize_name = |raw|
 		match Str.from_utf8(keep_name_bytes(Str.to_utf8(raw), 0, [])) {
@@ -267,14 +249,6 @@ Attribute(msg) := [
 	## Rendered as present/absent (HTML boolean attribute semantics).
 	boolean : Str, Bool -> Attribute(msg)
 	boolean = |name_, val| Boolean(name_, val)
-
-	## A stable identity for a child in a list. When siblings carry keys, the
-	## client differ matches them by key across renders, so inserting,
-	## removing or reordering items moves the existing DOM nodes instead of
-	## rewriting every position. Keys must be unique among siblings. Never
-	## rendered, in SSR or DOM.
-	key : Str -> Attribute(msg)
-	key = |val| Key(val)
 
 	## Inline styles: `style([("display", "flex"), ("padding", "20px")])`.
 	style : List((Str, Str)) -> Attribute(msg)
@@ -396,9 +370,9 @@ Attribute(msg) := [
 	loading : Str -> Attribute(msg)
 	loading = |val| String("loading", val)
 
-	## The upper bound of an input's range. A `Str` and not a number because
-	## the bound follows the input's type: "10" and "1.5" for `number`, but
-	## "2026-12-31" for `date` and "23:59" for `time`. See also `min`.
+	## The upper bound of an input's range. A `Str` because the bound follows
+	## the input's type: "10" for `number`, "2026-12-31" for `date`, "23:59"
+	## for `time`. See also `min`.
 	max : Str -> Attribute(msg)
 	max = |val| String("max", val)
 
@@ -482,10 +456,9 @@ Attribute(msg) := [
 	height : U64 -> Attribute(msg)
 	height = |val| String("height", val.to_str())
 
-	## Keyboard navigation order. Signed because the useful values include
-	## `-1`, which makes an element focusable by script or click but skips it
-	## in the tab order. `0` puts it in document order. Positive values jump
-	## the queue and are best avoided.
+	## Keyboard navigation order. `0` puts the element in document order and
+	## `-1` makes it focusable by script or click while skipping the tab
+	## order. Positive values jump the queue and are best avoided.
 	tabindex : I32 -> Attribute(msg)
 	tabindex = |val| String("tabindex", val.to_str())
 
@@ -571,12 +544,11 @@ Attribute(msg) := [
 	on_submit : msg -> Attribute(msg)
 	on_submit = |msg| MsgHandler("submit", Bool.True, Bool.False, Box.box(msg))
 
-	## Send the message produced from reading the named DOM property off the
-	## event target when the named event fires:
-	## `on_property("change", "checked", |s| Toggled(s == "true"))`.
-	## The client runtime stringifies the property before calling the decoder,
-	## so booleans arrive as "true"/"false" and numbers as their decimal text.
-	## A property that is missing, null, or NaN on the target reads as "".
+	## Send the message built from a DOM property of the event target when
+	## the named event fires:
+	## `on_property("change", "checked", |s| Toggled(s == "true"))`. The
+	## property arrives stringified, so booleans read as "true"/"false",
+	## numbers as decimal text, and anything missing, null or NaN as "".
 	on_property : Str, Str, (Str -> msg) -> Attribute(msg)
 	on_property = |event_name, property_name, to_msg|
 		PropertyHandler(event_name, property_name, Bool.False, Bool.False, Box.box(|s| Box.box(to_msg(s))))
@@ -606,21 +578,19 @@ Attribute(msg) := [
 	on_check : (Bool -> msg) -> Attribute(msg)
 	on_check = |to_msg| Attribute.on_property("change", "checked", |s| to_msg(s == "true"))
 
-	## Send the message produced from the `KeyEvent` record (key, physical
-	## code, modifiers, repeat) when a keyboard event fires on this element:
-	## `on_key("keydown", ["Enter"], |_| UserSubmitted)`. An empty key list
-	## matches every key. A non-empty one fires (and, with
-	## `.prevent_default()`, suppresses the browser default) only when the
-	## event's `key` is listed. The match is case-sensitive.
+	## Send the message built from the `KeyEvent` when a keyboard event fires
+	## on this element: `on_key("keydown", ["Enter"], |_| UserSubmitted)`. An
+	## empty key list matches every key, a non-empty one only the keys listed
+	## (matched case-sensitively), and `.prevent_default()` then applies to
+	## just those keys.
 	on_key : Str, List(Str), (KeyEvent -> msg) -> Attribute(msg)
 	on_key = |event_name, keys, to_msg|
 		KeyHandler(event_name, keys, Bool.False, Bool.False, Box.box(|e| Box.box(to_msg(e))))
 
 	## Every key pressed down on this element, browser defaults left intact.
-	## Chain `.prevent_default()` to suppress them, but note that on an
-	## unfiltered handler that includes Tab and the browser's own shortcuts,
-	## so prefer a key filter: `on_key("keydown", ["Enter"], to_msg)
-	## .prevent_default()` suppresses the default for exactly those keys.
+	## Chaining `.prevent_default()` here suppresses Tab and the browser's
+	## own shortcuts along with everything else, so prefer a key filter:
+	## `on_key("keydown", ["Enter"], to_msg).prevent_default()`.
 	on_keydown : (KeyEvent -> msg) -> Attribute(msg)
 	on_keydown = |to_msg| Attribute.on_key("keydown", [], to_msg)
 
@@ -673,19 +643,15 @@ Attribute(msg) := [
 	on_file : (FileInfo -> msg) -> Attribute(msg)
 	on_file = |to_msg| FileHandler(Box.box(|info| Box.box(to_msg(info))))
 
-	## Send `msg` when this element scrolls into view. The client runtime
-	## attaches an IntersectionObserver whose lifetime it ties to the
-	## element. Never rendered in SSR.
+	## Send `msg` when this element scrolls into view, the usual way to load
+	## the next page of an endless list. `root_margin` grows the viewport for
+	## the check, so "200px" fires 200px before the element really shows.
 	##
-	## `root_margin` grows the viewport for the check, so "200px" fires the
-	## msg 200px before the element actually becomes visible.
-	##
-	## An observer only fires when the element crosses into view. If the
-	## element stays on screen after a re-render it would never fire again,
-	## which stalls patterns like infinite scroll. Give `rearm_key` a value
-	## that changes when you want visibility re-checked (say, the number of
-	## items shown) and the runtime re-arms the observer whenever the key
-	## changes. Keep it constant to fire once per crossing.
+	## The observer fires only on the crossing into view, so an element that
+	## stays on screen after the re-render never fires again and the loading
+	## stalls. Give `rearm_key` something that changes when you want another
+	## check (the number of items shown, say) and the observer re-arms with
+	## it. Keep it constant to fire once per crossing.
 	on_visible : msg, { root_margin : Str, rearm_key : Str } -> Attribute(msg)
 	on_visible = |msg, opts| VisibilityHandler(opts.root_margin, opts.rearm_key, Box.box(msg))
 }
@@ -865,7 +831,6 @@ expect Attribute.to_ssr_str(Attribute.checked(Bool.True)) == "checked"
 expect Attribute.to_ssr_str(Attribute.checked(Bool.False)) == ""
 expect Attribute.to_ssr_str(Attribute.on_click("clicked")) == ""
 expect Attribute.to_ssr_str(Attribute.on_input(|s| "typed:${s}")) == ""
-expect Attribute.to_ssr_str(Attribute.key("row-7")) == ""
 expect Attribute.to_ssr_str(Attribute.on_visible("seen", { root_margin: "200px", rearm_key: "k1" })) == ""
 
 # on_check reads the `checked` property and decodes the stringified boolean.

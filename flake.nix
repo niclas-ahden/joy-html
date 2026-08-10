@@ -1,11 +1,16 @@
 {
   description = "joy-html";
 
+  nixConfig = {
+    extra-substituters = [ "https://niclas-ahden.cachix.org" ];
+    extra-trusted-public-keys = [ "niclas-ahden.cachix.org-1:FdGli1vBk0cTuVJV27Tau/JvlbW+Ly3pRwFByyqdke0=" ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     roc-src = {
-      url = "github:roc-lang/roc/660d0f30eb8ecc7847b67cb54e153d227988bbc9";
+      url = "github:roc-lang/roc/7df85098f6456f70fcffe6e14b5823a8bc4e1117";
       flake = false;
     };
   };
@@ -51,6 +56,10 @@
           inherit version;
           src = roc-src;
 
+          # To patch the compiler, drop a diff in nix/ and list it here, e.g.
+          #
+          #   patches = [ ./nix/roc-pr-12345.patch ];
+
           nativeBuildInputs = [ zig ];
 
           dontConfigure = true;
@@ -93,6 +102,7 @@
           default = pkgs.mkShell {
             buildInputs = [
               roc
+              pkgs.cachix
               pkgs.watchexec
             ];
 
